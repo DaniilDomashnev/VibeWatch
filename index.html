@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeWatch - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>VibeWatch</h2>
+            <div>
+                <span id="user-email" style="margin-right: 15px; color: var(--text-muted);"></span>
+                <button id="logout-btn" class="btn">Logout</button>
+            </div>
+        </header>
+
+        <div class="dashboard-grid">
+            <div class="card">
+                <h3>Create Room</h3>
+                <p style="color: var(--text-muted); margin: 10px 0;">Start a new watching session.</p>
+                <button id="create-room-btn" class="btn btn-primary">Create New Room</button>
+            </div>
+            
+            <div class="card">
+                <h3>Join Room</h3>
+                <p style="color: var(--text-muted); margin: 10px 0;">Enter a Room ID to join friends.</p>
+                <input type="text" id="room-id-input" class="input-field" placeholder="Room ID" style="text-align: center;">
+                <button id="join-room-btn" class="btn btn-primary">Join Room</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, db } from './firebase.js';
+        import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+        import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) window.location.href = 'auth.html';
+            document.getElementById('user-email').innerText = user.email;
+        });
+
+        document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+
+        document.getElementById('create-room-btn').addEventListener('click', async () => {
+            const docRef = await addDoc(collection(db, "rooms"), {
+                hostId: auth.currentUser.uid,
+                videoUrl: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", // Default video
+                isPlaying: false,
+                currentTime: 0,
+                lastUpdated: serverTimestamp()
+            });
+            window.location.href = `room.html?id=${docRef.id}`;
+        });
+
+        document.getElementById('join-room-btn').addEventListener('click', () => {
+            const roomId = document.getElementById('room-id-input').value.trim();
+            if(roomId) window.location.href = `room.html?id=${roomId}`;
+        });
+    </script>
+</body>
+</html>

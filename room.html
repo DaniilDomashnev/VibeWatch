@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeWatch Room</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container room-layout">
+        <div class="video-section">
+            <div style="display: flex; gap: 10px;" id="host-controls" class="hidden">
+                <input type="text" id="video-url-input" class="input-field" placeholder="Paste .mp4 URL here" style="margin-bottom: 0;">
+                <button id="load-video-btn" class="btn btn-primary">Load</button>
+            </div>
+            <video id="main-video" controls playsinline>
+                <source src="" type="video/mp4">
+                Your browser does not support HTML5 video.
+            </video>
+            <div style="display: flex; justify-content: space-between;">
+                <h3 id="room-status">Room: <span id="room-id-display"></span></h3>
+                <button id="leave-btn" class="btn" style="background: var(--danger); color: white;">Leave Room</button>
+            </div>
+        </div>
+
+        <div class="chat-section">
+            <div class="chat-header">Live Chat</div>
+            <div class="chat-messages" id="chat-box"></div>
+            <form id="chat-form" class="chat-input-area">
+                <input type="text" id="chat-input" class="input-field" placeholder="Type a message..." style="margin: 0;" required>
+                <button type="submit" class="btn btn-primary">Send</button>
+            </form>
+        </div>
+    </div>
+    <script type="module" src="room.js"></script>
+</body>
+</html>
