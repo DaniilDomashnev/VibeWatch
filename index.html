@@ -1,64 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VibeWatch - Dashboard</title>
+    <title>VibeWatch - Lobby</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div class="container">
-        <header style="display: flex; justify-content: space-between; align-items: center;">
-            <h2>VibeWatch</h2>
-            <div>
-                <span id="user-email" style="margin-right: 15px; color: var(--text-muted);"></span>
-                <button id="logout-btn" class="btn">Logout</button>
-            </div>
-        </header>
 
-        <div class="dashboard-grid">
-            <div class="card">
-                <h3>Create Room</h3>
-                <p style="color: var(--text-muted); margin: 10px 0;">Start a new watching session.</p>
-                <button id="create-room-btn" class="btn btn-primary">Create New Room</button>
-            </div>
-            
-            <div class="card">
-                <h3>Join Room</h3>
-                <p style="color: var(--text-muted); margin: 10px 0;">Enter a Room ID to join friends.</p>
-                <input type="text" id="room-id-input" class="input-field" placeholder="Room ID" style="text-align: center;">
-                <button id="join-room-btn" class="btn btn-primary">Join Room</button>
+<body class="center-screen">
+    <div class="card" style="text-align: center;">
+        <h2 style="margin-bottom: 10px;">VibeWatch Lobby</h2>
+        <p id="user-display" style="color: var(--text-muted); margin-bottom: 20px;"></p>
+
+        <button id="create-btn" class="btn btn-primary" style="width: 100%; margin-bottom: 20px;">Create New
+            Room</button>
+
+        <div style="border-top: 1px solid var(--border); padding-top: 20px;">
+            <p style="margin-bottom: 10px; color: var(--text-muted);">Or join existing</p>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="room-code" class="input-field" placeholder="Enter Room Code">
+                <button id="join-btn" class="btn btn-primary">Join</button>
             </div>
         </div>
+        <button id="logout-btn" class="btn"
+            style="background: transparent; color: var(--text-muted); margin-top: 20px;">Logout</button>
     </div>
 
     <script type="module">
         import { auth, db } from './firebase.js';
-        import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-        import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+        import { signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+        import { doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-        onAuthStateChanged(auth, (user) => {
-            if (!user) window.location.href = 'auth.html';
-            document.getElementById('user-email').innerText = user.email;
+        auth.onAuthStateChanged(u => {
+            if (!u) window.location.href = 'auth.html';
+            document.getElementById('user-display').innerText = u.email;
         });
 
-        document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+        document.getElementById('logout-btn').onclick = () => signOut(auth);
 
-        document.getElementById('create-room-btn').addEventListener('click', async () => {
-            const docRef = await addDoc(collection(db, "rooms"), {
+        document.getElementById('create-btn').onclick = async () => {
+            const roomId = Math.random().toString(36).substring(2, 8).toUpperCase(); // 6-char code
+            await setDoc(doc(db, "rooms", roomId), {
                 hostId: auth.currentUser.uid,
-                videoUrl: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", // Default video
-                isPlaying: false,
+                videoId: "M7lc1UVf-VE", // Default video
+                playerState: 2, // Paused
                 currentTime: 0,
                 lastUpdated: serverTimestamp()
             });
-            window.location.href = `room.html?id=${docRef.id}`;
-        });
+            window.location.href = `room.html?id=${roomId}`;
+        };
 
-        document.getElementById('join-room-btn').addEventListener('click', () => {
-            const roomId = document.getElementById('room-id-input').value.trim();
-            if(roomId) window.location.href = `room.html?id=${roomId}`;
-        });
+        document.getElementById('join-btn').onclick = () => {
+            const code = document.getElementById('room-code').value.trim().toUpperCase();
+            if (code) window.location.href = `room.html?id=${code}`;
+        };
     </script>
 </body>
+
 </html>

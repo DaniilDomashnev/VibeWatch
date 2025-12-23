@@ -1,170 +1,120 @@
-import { auth, db } from './firebase.js';
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-import { 
-    doc, getDoc, updateDoc, onSnapshot, collection, addDoc, 
-    query, orderBy, serverTimestamp 
-} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { auth, db } from './firebase.js'
+import {
+	doc,
+	getDoc,
+	onSnapshot,
+	collection,
+	addDoc,
+	updateDoc,
+	serverTimestamp,
+	query,
+	orderBy,
+} from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js'
+import { VideoController } from './video.js'
+import { VoiceManager } from './voice.js'
 
-// DOM Elements
-const video = document.getElementById('main-video');
-const hostControls = document.getElementById('host-controls');
-const videoInput = document.getElementById('video-url-input');
-const loadVideoBtn = document.getElementById('load-video-btn');
-const chatBox = document.getElementById('chat-box');
-const chatForm = document.getElementById('chat-form');
-const chatInput = document.getElementById('chat-input');
-const roomIdDisplay = document.getElementById('room-id-display');
+const roomId = new URLSearchParams(window.location.search).get('id')
+if (!roomId) window.location.href = 'index.html'
 
-// State
-let roomId = new URLSearchParams(window.location.search).get('id');
-let isHost = false;
-let unsubscribeRoom = null;
-let unsubscribeChat = null;
-let currentUser = null;
-let ignoreNextUpdate = false; // Prevents loops
+document.getElementById('room-id-display').innerText = roomId
 
-if (!roomId) window.location.href = 'index.html';
-roomIdDisplay.innerText = roomId;
+let currentUser
+let isHost = false
+let voiceManager
 
-// 1. Auth Check
-onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-        window.location.href = 'auth.html';
-        return;
-    }
-    currentUser = user;
-    await initRoom();
-});
+auth.onAuthStateChanged(async user => {
+	if (!user) window.location.href = 'auth.html'
+	currentUser = user
 
-// 2. Initialize Room
-async function initRoom() {
-    const roomRef = doc(db, "rooms", roomId);
-    const roomSnap = await getDoc(roomRef);
+	// 1. Check Room & Host
+	const roomRef = doc(db, 'rooms', roomId)
+	const roomSnap = await getDoc(roomRef)
 
-    if (!roomSnap.exists()) {
-        alert("Room not found!");
-        window.location.href = 'index.html';
-        return;
-    }
+	if (!roomSnap.exists()) {
+		alert('Room not found')
+		window.location.href = 'index.html'
+		return
+	}
 
-    const roomData = roomSnap.data();
-    isHost = roomData.hostId === currentUser.uid;
+	isHost = roomSnap.data().hostId === currentUser.uid
+	if (isHost) document.getElementById('host-controls').style.display = 'flex'
 
-    // Initial Video Load
-    if (roomData.videoUrl) {
-        video.src = roomData.videoUrl;
-    }
+	// 2. Initialize Video
+	await VideoController.init('player', roomRef, isHost, roomSnap.data().videoId)
 
-    // Setup UI for Host/Viewer
-    if (isHost) {
-        hostControls.classList.remove('hidden');
-        setupHostListeners(roomRef);
-    } else {
-        // Hide native controls for viewers to force sync (optional, keeping visible for UX)
-        // video.controls = false; 
-    }
+	// 3. Listen for Room Updates (Video Sync)
+	onSnapshot(roomRef, doc => {
+		if (doc.exists()) VideoController.sync(doc.data())
+	})
 
-    // Listen for Room Updates (Sync Logic)
-    unsubscribeRoom = onSnapshot(roomRef, (doc) => {
-        if (!doc.exists()) return;
-        const data = doc.data();
+	// 4. Initialize Voice
+	voiceManager = new VoiceManager(roomId, currentUser.uid)
+	voiceManager.init()
 
-        // Sync Video Source
-        if (video.src !== data.videoUrl) {
-            video.src = data.videoUrl;
-        }
+	// 5. Initialize Chat
+	initChat()
+})
 
-        // SYNC PLAYBACK (Viewer Only Logic - Host is source of truth)
-        if (!isHost) {
-            syncPlayback(data);
-        }
-    });
-
-    // Listen for Chat
-    setupChat();
+// UI Handlers
+document.getElementById('load-video').onclick = () => {
+	const url = document.getElementById('video-url').value
+	const videoId = url.split('v=')[1]?.split('&')[0]
+	if (videoId && isHost) {
+		updateDoc(doc(db, 'rooms', roomId), {
+			videoId: videoId,
+			playerState: 1,
+			currentTime: 0,
+		})
+	}
 }
 
-// 3. Synchronization Logic (The Core)
-const SYNC_THRESHOLD = 1.5; // seconds
-
-function syncPlayback(data) {
-    // Sync Play/Pause
-    if (data.isPlaying && video.paused) {
-        video.play().catch(e => console.log("Autoplay blocked", e));
-    } else if (!data.isPlaying && !video.paused) {
-        video.pause();
-    }
-
-    // Sync Time (Drift Correction)
-    const timeDiff = Math.abs(video.currentTime - data.currentTime);
-    if (timeDiff > SYNC_THRESHOLD) {
-        video.currentTime = data.currentTime;
-    }
+document.getElementById('mute-btn').onclick = function () {
+	const isEnabled = voiceManager.toggleMute()
+	this.innerText = isEnabled ? '🎤' : '🔇'
+	this.classList.toggle('active', isEnabled)
+	// Visual cue
+	document.getElementById('my-avatar').style.boxShadow = isEnabled
+		? '0 0 0 2px #43b581'
+		: 'none'
 }
 
-// 4. Host Listeners (Host writes to DB)
-function setupHostListeners(roomRef) {
-    // Update URL
-    loadVideoBtn.addEventListener('click', async () => {
-        const url = videoInput.value.trim();
-        if (url) {
-            await updateDoc(roomRef, { videoUrl: url, currentTime: 0, isPlaying: false });
-        }
-    });
-
-    // Video Events
-    video.addEventListener('play', () => {
-        updateDoc(roomRef, { isPlaying: true, currentTime: video.currentTime });
-    });
-
-    video.addEventListener('pause', () => {
-        updateDoc(roomRef, { isPlaying: false, currentTime: video.currentTime });
-    });
-
-    video.addEventListener('seeked', () => {
-        updateDoc(roomRef, { currentTime: video.currentTime });
-    });
-    
-    // Periodic sync to keep late-joiners updated
-    setInterval(() => {
-        if (!video.paused) {
-            updateDoc(roomRef, { currentTime: video.currentTime });
-        }
-    }, 2000);
+document.getElementById('copy-code').onclick = () => {
+	navigator.clipboard.writeText(roomId)
+	alert('Room code copied!')
 }
 
-// 5. Chat System
-function setupChat() {
-    const messagesRef = collection(db, "rooms", roomId, "messages");
-    const q = query(messagesRef, orderBy("createdAt", "asc"));
-
-    unsubscribeChat = onSnapshot(q, (snapshot) => {
-        chatBox.innerHTML = '';
-        snapshot.forEach((doc) => {
-            const msg = doc.data();
-            const div = document.createElement('div');
-            div.className = 'message';
-            div.innerHTML = `<span class="sender">${msg.sender}</span>${msg.text}`;
-            chatBox.appendChild(div);
-        });
-        chatBox.scrollTop = chatBox.scrollHeight;
-    });
-
-    chatForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const text = chatInput.value.trim();
-        if (!text) return;
-
-        await addDoc(messagesRef, {
-            text: text,
-            sender: currentUser.email.split('@')[0], // Use email prefix as name
-            createdAt: serverTimestamp()
-        });
-        chatInput.value = '';
-    });
+document.getElementById('leave-btn').onclick = () => {
+	// Ideally cleanup voice signals here
+	window.location.href = 'index.html'
 }
 
-// Leave Room
-document.getElementById('leave-btn').addEventListener('click', () => {
-    window.location.href = 'index.html';
-});
+function initChat() {
+	const chatRef = collection(db, 'rooms', roomId, 'messages')
+	const q = query(chatRef, orderBy('createdAt'))
+
+	onSnapshot(q, snap => {
+		const container = document.getElementById('messages')
+		container.innerHTML = ''
+		snap.forEach(d => {
+			const data = d.data()
+			const div = document.createElement('div')
+			div.className = 'msg'
+			div.innerHTML = `<div class="meta">${data.user}</div><div class="text">${data.text}</div>`
+			container.appendChild(div)
+		})
+		container.scrollTop = container.scrollHeight
+	})
+
+	document.getElementById('chat-form').onsubmit = e => {
+		e.preventDefault()
+		const input = document.getElementById('chat-input')
+		if (!input.value.trim()) return
+
+		addDoc(chatRef, {
+			text: input.value,
+			user: currentUser.email.split('@')[0],
+			createdAt: serverTimestamp(),
+		})
+		input.value = ''
+	}
+}

@@ -1,40 +1,35 @@
-import { auth } from './firebase.js';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } 
-from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+// auth.js
+import { auth } from './firebase.js'
+import {
+	signInWithEmailAndPassword,
+	createUserWithEmailAndPassword,
+	onAuthStateChanged,
+} from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js'
 
-const authForm = document.getElementById('auth-form');
-const emailInput = document.getElementById('email');
-const passwordInput = document.getElementById('password');
-const toggleBtn = document.getElementById('toggle-auth');
-const formTitle = document.getElementById('form-title');
+const form = document.getElementById('auth-form')
+const toggle = document.getElementById('toggle')
+let isLogin = true
 
-let isLogin = true;
+onAuthStateChanged(auth, u => {
+	if (u) window.location.href = 'index.html'
+})
 
-// Check if already logged in
-onAuthStateChanged(auth, (user) => {
-    if (user) window.location.href = 'index.html';
-});
+toggle.onclick = () => {
+	isLogin = !isLogin
+	toggle.innerText = isLogin
+		? 'Need an account? Register'
+		: 'Have an account? Login'
+	form.querySelector('button').innerText = isLogin ? 'Log In' : 'Register'
+}
 
-toggleBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    isLogin = !isLogin;
-    formTitle.innerText = isLogin ? 'Welcome Back' : 'Create Account';
-    authForm.querySelector('button').innerText = isLogin ? 'Sign In' : 'Register';
-    toggleBtn.previousElementSibling.innerText = isLogin ? 'New here?' : 'Already have an account?';
-});
-
-authForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = emailInput.value;
-    const password = passwordInput.value;
-
-    try {
-        if (isLogin) {
-            await signInWithEmailAndPassword(auth, email, password);
-        } else {
-            await createUserWithEmailAndPassword(auth, email, password);
-        }
-    } catch (error) {
-        alert(error.message);
-    }
-});
+form.onsubmit = async e => {
+	e.preventDefault()
+	const email = document.getElementById('email').value
+	const pass = document.getElementById('pass').value
+	try {
+		if (isLogin) await signInWithEmailAndPassword(auth, email, pass)
+		else await createUserWithEmailAndPassword(auth, email, pass)
+	} catch (err) {
+		alert(err.message)
+	}
+}

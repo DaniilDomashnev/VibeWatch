@@ -1,37 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VibeWatch Room</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://www.youtube.com/iframe_api"></script>
 </head>
-<body>
-    <div class="container room-layout">
-        <div class="video-section">
-            <div style="display: flex; gap: 10px;" id="host-controls" class="hidden">
-                <input type="text" id="video-url-input" class="input-field" placeholder="Paste .mp4 URL here" style="margin-bottom: 0;">
-                <button id="load-video-btn" class="btn btn-primary">Load</button>
-            </div>
-            <video id="main-video" controls playsinline>
-                <source src="" type="video/mp4">
-                Your browser does not support HTML5 video.
-            </video>
-            <div style="display: flex; justify-content: space-between;">
-                <h3 id="room-status">Room: <span id="room-id-display"></span></h3>
-                <button id="leave-btn" class="btn" style="background: var(--danger); color: white;">Leave Room</button>
-            </div>
-        </div>
 
-        <div class="chat-section">
-            <div class="chat-header">Live Chat</div>
-            <div class="chat-messages" id="chat-box"></div>
-            <form id="chat-form" class="chat-input-area">
-                <input type="text" id="chat-input" class="input-field" placeholder="Type a message..." style="margin: 0;" required>
-                <button type="submit" class="btn btn-primary">Send</button>
-            </form>
-        </div>
+<body>
+    <div class="room-layout">
+        <header class="top-bar">
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <h3>VibeWatch</h3>
+                <div class="room-code-badge" id="copy-code">
+                    CODE: <span id="room-id-display">...</span> 📋
+                </div>
+            </div>
+            <button id="leave-btn" class="btn btn-danger">Leave Room</button>
+        </header>
+
+        <main class="main-area">
+            <section class="video-container">
+                <div id="host-controls" class="host-controls" style="display: none;">
+                    <input type="text" id="video-url" class="input-field" placeholder="Paste YouTube URL"
+                        style="margin: 0;">
+                    <button id="load-video" class="btn btn-primary">Play</button>
+                </div>
+
+                <div class="video-wrapper">
+                    <div id="player"></div>
+                </div>
+            </section>
+
+            <aside class="sidebar">
+                <div class="voice-panel">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4>Voice Chat</h4>
+                        <button id="mute-btn" class="btn btn-icon">🎤</button>
+                    </div>
+                    <div id="user-list" class="user-list">
+                        <div class="user-avatar" id="my-avatar">Me</div>
+                    </div>
+                </div>
+
+                <div class="chat-panel">
+                    <div id="messages" class="messages"></div>
+                    <form id="chat-form" style="padding: 15px; background: #202225;">
+                        <input type="text" id="chat-input" class="input-field" placeholder="Message..."
+                            autocomplete="off">
+                    </form>
+                </div>
+            </aside>
+        </main>
     </div>
     <script type="module" src="room.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
 </body>
+
 </html>
